@@ -23,8 +23,8 @@ function LoginInner() {
 		try {
 			if (mode === "newPassword") {
 				const r = await authClient.resetPassword({
-					newPassword: password,
-					token: resetToken ?? "",
+					newPassword: password, // ggignore: form input, not a hard-coded secret
+					token: resetToken ?? "", // ggignore
 				});
 				if (r.error)
 					throw new Error(
