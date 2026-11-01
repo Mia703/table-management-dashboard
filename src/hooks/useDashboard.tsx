@@ -1,7 +1,7 @@
 "use client";
 import { createContext, useContext, useEffect, useState } from "react";
 import { api, query } from "@/lib/api";
-import { eventData, type Obj, type Page } from "@/lib/dashboard";
+import { editorRoles, eventData, type Obj, type Page } from "@/lib/dashboard";
 
 // State shared by every dashboard screen: the organization's events, the active
 // event's snapshot, the record being edited, and the current screen and messages.
@@ -18,7 +18,8 @@ function useDashboardState(userId: string) {
 		[search, setSearch] = useState(""),
 		[error, setError] = useState(""),
 		[notice, setNotice] = useState(""),
-		[loading, setLoading] = useState(false);
+		[loading, setLoading] = useState(false),
+		[preview, setPreview] = useState(false);
 	async function refreshList() {
 		const d = await query("list");
 		setCollection(d);
@@ -63,7 +64,20 @@ function useDashboardState(userId: string) {
 		setNotice("");
 		setError("");
 	};
-	const role: string | undefined = collection.role;
+	// "Preview as Viewer" lets owners and managers see the read-only staff view:
+	// edit controls, staff lists and dietary notes are hidden, as for a real viewer.
+	const realRole: string | undefined = collection.role;
+	const canPreview = editorRoles.includes(realRole ?? "");
+	const role = preview && canPreview ? "viewer" : realRole;
+	const canEdit = editorRoles.includes(role ?? "");
+	const shownSnap =
+		preview && snap
+			? {
+					...snap,
+					role: "viewer",
+					guests: (snap.guests || []).map((g: Obj) => ({ ...g, diet: null })),
+				}
+			: snap;
 	return {
 		userId,
 		page,
@@ -71,11 +85,16 @@ function useDashboardState(userId: string) {
 		collection,
 		orgId: collection.organizations?.[0]?.id as string | undefined,
 		role,
-		isAdmin: ["owner", "manager"].includes(role ?? ""),
+		realRole,
+		canEdit,
+		isAdmin: canEdit,
+		canPreview,
+		preview: preview && canPreview,
+		setPreview,
 		active,
 		setActive,
-		snap,
-		data: eventData(snap),
+		snap: shownSnap,
+		data: eventData(shownSnap),
 		base: { eventId: active },
 		edit,
 		setEdit,

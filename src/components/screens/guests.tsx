@@ -5,29 +5,41 @@ import { Table } from "@/components/ui/table";
 import { ScreenTitle } from "./screen-title";
 
 export function GuestsScreen() {
-	const { data, open, search, setSearch, setEdit, setSelected } =
+	const { data, open, search, setSearch, setEdit, setSelected, canEdit } =
 		useDashboard();
 	const { gs, buyer, registration, meal, seat, seatTable } = data;
 	return (
 		<>
 			<ScreenTitle
-				text="Guest directory"
+				text="Guest Directory"
 				desc="Find guests, edit meals and seating preferences."
 			/>
-			<Panel title="Find a guest">
+			<Panel title="Find a Guest">
 				<Field
-					label="Search guest, purchaser or meal"
+					label="Search"
+					placeholder="Guest, purchaser or meal"
 					value={search}
 					onChange={setSearch}
 				/>
 				<Table
-					heads={["Guest", "Purchaser", "Meal", "Table / seat", "Action"]}
+					heads={[
+						"Guest",
+						"Purchaser",
+						"Meal",
+						"Table / Seat",
+						...(canEdit ? ["Action"] : []),
+					]}
 					rows={gs
 						.filter((g) =>
 							[g.name, buyer(registration(g)), meal(g)]
 								.join(" ")
 								.toLowerCase()
 								.includes(search.toLowerCase()),
+						)
+						.sort(
+							(a, b) =>
+								buyer(registration(a)).localeCompare(buyer(registration(b))) ||
+								a.name.localeCompare(b.name),
 						)
 						.map((g) => [
 							g.name,
@@ -36,16 +48,20 @@ export function GuestsScreen() {
 							seatTable(g)
 								? `${seatTable(g)!.name} / ${seat(g)!.seat}`
 								: "Unassigned",
-							<button
-								className="secondary"
-								onClick={() => {
-									setSelected(g.id);
-									setEdit({ ...g });
-									open("guestForm");
-								}}
-							>
-								Review / edit
-							</button>,
+							...(canEdit
+								? [
+										<button
+											className="secondary"
+											onClick={() => {
+												setSelected(g.id);
+												setEdit({ ...g });
+												open("guestForm");
+											}}
+										>
+											Review / Edit
+										</button>,
+									]
+								: []),
 						])}
 				/>
 			</Panel>
@@ -54,16 +70,16 @@ export function GuestsScreen() {
 }
 
 export function GuestFormScreen() {
-	const { data, snap, edit, setEdit, selected, loading, perform, open, base } =
+	const { data, edit, setEdit, selected, loading, perform, open, base, canEdit } =
 		useDashboard();
-	if (snap?.role === "viewer") return null;
+	if (!canEdit) return null;
 	return (
 		<>
 			<ScreenTitle
-				text="Edit guest"
+				text="Edit Guest"
 				desc="Manage guest name, meal selection, and seating requests."
 			/>
-			<Panel title="Guest information">
+			<Panel title="Guest Information">
 				<form
 					onSubmit={(ev) => {
 						ev.preventDefault();
@@ -84,6 +100,7 @@ export function GuestFormScreen() {
 					<Field
 						label="Guest full name"
 						required
+						placeholder="e.g. Alex Rivera"
 						value={edit.name}
 						onChange={(s) => setEdit({ ...edit, name: s })}
 					/>
@@ -106,17 +123,20 @@ export function GuestFormScreen() {
 						</select>
 					</label>
 					<Field
-						label="Dietary and allergy notes (restricted to manager/owner)"
+						label="Dietary and allergy notes"
+						hint="Only owners and managers can see this."
+						placeholder="e.g. Nut allergy, gluten-free"
 						value={edit.diet}
 						onChange={(s) => setEdit({ ...edit, diet: s })}
 					/>
 					<Field
 						label="Preferred tablemates / seating request"
+						placeholder="e.g. Seat with the Rivera party"
 						value={edit.request}
 						onChange={(s) => setEdit({ ...edit, request: s })}
 					/>
 					<div className="actions">
-						<button disabled={loading}>Save guest</button>
+						<button disabled={loading}>Save Guest</button>
 						<button
 							className="secondary"
 							type="button"
@@ -141,7 +161,7 @@ export function GuestFormScreen() {
 									);
 							}}
 						>
-							Remove guest
+							Remove Guest
 						</button>
 					</div>
 				</form>

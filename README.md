@@ -52,25 +52,30 @@ npm run seed
 1. Create a private GitHub repository and push the **project contents**. Never commit `.env`.
 2. Import your repository as a Next.js project in Vercel. Configure the environment variables above using actual credentials.
 3. Set `BETTER_AUTH_URL` and `NEXT_PUBLIC_APP_URL` to your exact HTTPS Vercel/custom domain.
-4. Apply the database schema **before** opening production: locally `npm run db:push` with production `DATABASE_URL` (read its proposed changes before confirming), or use generated reviewed migrations with `npm run db:generate && npm run db:migrate`. This includes the `rate_limit` table used for login rate limiting.
+4. Apply the database schema **before** opening production: locally `npm run db:push` with production `DATABASE_URL` (read its proposed changes before confirming), or use generated reviewed migrations with `npm run db:generate && npm run db:migrate`. This includes the `rate_limit` table used for login rate limiting. Databases created before November 2026 also need `scripts/sql/2026-11-01-attendees-payments.sql` (additive, safe to re-run) **before** deploying code from that date.
 5. Deploy and sign in with the bootstrap owner email.
 6. Configure backups/retention in Neon and access restrictions on GitHub and Vercel.
 
 ## Accounts, roles and passwords
 
-| | Owner | Manager | Viewer |
-|---|---|---|---|
-| Edit events, registrations, guests, seating, meals | Yes | Yes | No (read-only, dietary notes hidden) |
-| Invite staff, cancel invitations | Yes | No | No |
-| See staff list and Change history | Yes | Yes | No |
-| Change a staff member's role (manager/viewer) | Yes | No | No |
-| Remove staff | Anyone except themself | Viewers only | No |
-| Create password reset links | Anyone | Viewers only | No |
-| Change own password | Yes | Yes | Yes |
+| | Owner | Manager | Viewer | Attendee |
+|---|---|---|---|---|
+| Edit events, registrations, guests, seating, meals | Yes | Yes | No (read-only, dietary notes hidden) | No |
+| Mark payments received (quick or bulk status edit) | Yes | Yes | No | No |
+| Invite people, cancel invitations | Yes | Yes | No | No |
+| See staff list and Change History | Yes | Yes | No | No |
+| Change a role (manager/viewer) | Yes | No | No | No |
+| Remove people | Anyone except themself | Anyone except the owner and themself | No | No |
+| Create password reset links | Anyone | Viewers and attendees | No | No |
+| Preview the app as a viewer | Yes | Yes | — | — |
+| Register and pay for their invited event | — | — | — | Yes (own registrations only) |
+| Change own password | Yes | Yes | Yes | Yes |
+
+**Viewers** are read-only staff (e.g. event-day helpers) and see every registration except dietary notes. **Attendees** are guests invited to one specific event: they only see that event and their own registrations, never anyone else's. Owners and managers can switch on **Preview as Viewer** in the sidebar to see exactly what viewers see; nothing can be changed while previewing.
 
 Nobody can be made owner from the app, and the owner cannot be removed. Removing a staff member deletes their login (ending their sessions); they can be invited again later.
 
-**Forgotten passwords (no email service).** There is no "Forgot password?" email flow. Instead, an owner or manager opens **Staff & access → Staff members → Create reset link** and shares the link privately. The link opens `/login?token=…`, lets the person choose a new password, works once, expires after 1 hour, and signs them out everywhere. Creating a new link cancels any earlier one. Reset tokens are stored hashed. If the owner is locked out, run this from the project folder with the right `DATABASE_URL`:
+**Forgotten passwords (no email service).** There is no "Forgot password?" email flow. Instead, an owner or manager opens **Staff & Access → People With Access → Create Reset Link** and shares the link privately. The link opens `/login?token=…`, lets the person choose a new password, works once, expires after 1 hour, and signs them out everywhere. Creating a new link cancels any earlier one. Reset tokens are stored hashed. If the owner is locked out, run this from the project folder with the right `DATABASE_URL`:
 
 ```bash
 npm run reset-link -- owner@example.org
@@ -80,16 +85,27 @@ npm run reset-link -- owner@example.org
 
 **Login rate limiting** (production only) is stored in the `rate_limit` table, so limits hold across Vercel's serverless instances: 3 sign-in attempts per 10 seconds per IP.
 
+## Attendee registration and payments
+
+1. An owner or manager opens **Staff & Access → Invite Someone**, chooses the **attendee** role and the event, and shares the 7-day link.
+2. The attendee creates an account from the link and sees only that event.
+3. Once the event is **Published**, they click **Register**, enter the number of tickets and the names of their additional guests (the attendee is guest 1).
+4. The registration is saved as **Unpaid** with source "Online registration". They can edit it while it is Pending or Unpaid.
+5. If the event has a **Payment link** (Event form, e.g. a Stripe Payment Link), a **Pay Now** button opens it with `client_reference_id=<registration ID>` and `prefilled_email` attached, so the payment can be matched in Stripe.
+6. Managers see the registration on **Registrations**, filter by **Unpaid**, and mark it **Paid** with the row's status dropdown, or tick several and use **Apply to Selected**.
+
+The app does not take or verify payments itself. Configure the Stripe Payment Link with an adjustable quantity (or a per-ticket price) so attendees pay for the right number of tickets.
+
 ## Modules
 
 - Events: create/edit/clone; copying configuration never copies registrations or history.
-- Registrations: manual purchaser records and recorded status from external sources, capacity check.
+- Registrations: purchaser records with every guest's name entered on the form (purchaser = guest 1, then one field per additional ticket), status from external sources or attendee self-registration, capacity check, status filter, quick and bulk status edits.
 - Imports: browser parses .csv/.xls/.xlsx; previews new vs duplicate vs review; server revalidates; unchanged external identifiers are skipped; original files are not retained. Each import is all-or-nothing.
 - Guests: individual guest rows, meal options, dietary notes and seating preferences. **Remove guest** (Edit guest page) clears their seat and lowers the registration's ticket quantity by one; the last guest on a registration can't be removed (cancel the registration instead).
-- Seating: table count and capacity; unique guest/seat database constraints; print table rosters.
-- Meals: configurable event options and missing-meal reports.
+- Seating: assign panel on top; guest picker grouped by purchaser, A–Z; optional "also seat the rest of this registration" bulk assignment into the next open seats (all-or-nothing); blank seat number = next open seat; full tables greyed out and not selectable; table overview and seat details side by side on wide screens; print table rosters.
+- Meals: guests grouped by meal choice (plus "Not Selected"), configurable options, missing-meal reports.
 - Reports: US Letter browser print / PDF and Excel download with spreadsheet formula escaping.
-- Staff & access: invitations, staff list, roles, removal, reset links, change own password.
+- Staff & Access: invitations (staff or event attendees), people list, roles, removal, reset links, pending invitations, change own password.
 - Change history: the latest 200 audited changes (who, what, event, details) for owners and managers.
 
 ## Data integrity

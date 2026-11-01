@@ -27,13 +27,14 @@ export function ReportsScreen() {
 	return (
 		<>
 			<ScreenTitle
-				text="Reports & printing"
+				text="Reports & Printing"
 				desc="Preview, print, or download event-day reports."
 			/>
-			<Panel title="Choose report">
+			<Panel title="Choose Report">
 				<div className="split">
 					<Field
 						label="Report type"
+						hint="Table rosters sort guests by table; the others sort A–Z."
 						value={report}
 						onChange={setReport}
 						options={[
@@ -47,6 +48,7 @@ export function ReportsScreen() {
 					/>
 					<Field
 						label="Status"
+						hint="Only include guests whose registration has this status."
 						value={filterStatus}
 						onChange={setFilterStatus}
 						options={["All", ...statuses]}

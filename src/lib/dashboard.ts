@@ -38,6 +38,7 @@ export const actionLabels: Record<string, string> = {
 	"registration.create": "Added registration",
 	"registration.update": "Updated registration",
 	"registration.import": "Imported registrations",
+	"registration.status": "Changed registration status",
 	"guest.update": "Updated guest",
 	"guest.remove": "Removed guest",
 	"meal.configure": "Changed meal options",
@@ -46,9 +47,12 @@ export const actionLabels: Record<string, string> = {
 	"seat.clear": "Cleared seat",
 	"staff.role": "Changed staff role",
 	"staff.remove": "Removed staff member",
+	"invite.create": "Created invitation",
 	"invite.cancel": "Cancelled invitation",
 	"password.resetLink": "Created password reset link",
 };
+// Roles that can change data (viewers and attendees can't).
+export const editorRoles = ["owner", "manager"];
 export const emptyRegistration = {
 	buyer: "",
 	email: "",
@@ -78,6 +82,8 @@ export function eventData(snap: Obj | null) {
 	const registered = regs
 		.filter((r) => r.status !== "Canceled")
 		.reduce((a, r) => a + r.quantity, 0);
+	const party = (g: Obj) =>
+		gs.filter((x) => x.registrationId === g.registrationId);
 	const filterGuests = (status: string, tableId: string) =>
 		gs.filter(
 			(g) =>
@@ -98,6 +104,7 @@ export function eventData(snap: Obj | null) {
 		seatTable,
 		meal,
 		registered,
+		party,
 		filterGuests,
 	};
 }

@@ -21,7 +21,7 @@ export function ActivityScreen() {
 				text="Change History"
 				desc="The latest 200 changes made in GatherWell."
 			/>
-			<Panel title="Recent changes">
+			<Panel title="Recent Changes">
 				{isAdmin ? (
 					activity.length ? (
 						<Table
