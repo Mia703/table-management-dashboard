@@ -185,6 +185,34 @@ h3 {
 	gap: 16px
 }
 
+/* Two-column rows: line the inputs up even when one field has a longer label
+   or help text than its neighbour (the input sits at the bottom of its cell). */
+.split > .field,
+.split > label {
+	display: flex;
+	flex-direction: column;
+	margin: 0 0 14px
+}
+
+.split > .field > label {
+	display: flex;
+	flex-direction: column;
+	flex: 1;
+	margin-bottom: 0
+}
+
+.split input,
+.split select,
+.split textarea {
+	margin-top: auto
+}
+
+/* Text boxes, dropdowns and date pickers all render at the same height */
+input:not([type=checkbox]):not([type=radio]):not([type=file]),
+select {
+	height: 48px
+}
+
 .field {
 	margin-bottom: 14px;
 	min-width: 160px;
